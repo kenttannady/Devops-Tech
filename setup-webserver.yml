@@ -1,0 +1,66 @@
+---
+- name: Configure CentOS Web Server
+  hosts: webservers
+  become: yes
+  vars:
+    welcome_message: "Hello World from Ansible!"
+    devops_user: devops
+    devops_password: "$6$rounds=656000$W2X5.5p7XJ5UQ/$YOUR_HASHED_PASSWORD"
+
+  tasks:
+    # Buat user devops
+    - name: Create devops user
+      user:
+        name: "{{ devops_user }}"
+        password: "{{ devops_password }}"
+        groups: wheel
+        append: yes
+        shell: /bin/bash
+
+    # Setup sudo tanpa password untuk devops
+    - name: Configure sudo for devops user
+      copy:
+        dest: /etc/sudoers.d/devops
+        content: "{{ devops_user }} ALL=(ALL) NOPASSWD:ALL"
+        validate: 'visudo -cf %s'
+
+    # Install httpd
+    - name: Install Apache HTTPD
+      yum:
+        name: httpd
+        state: present
+
+    # Enable dan start service
+    - name: Start and enable httpd service
+      service:
+        name: httpd
+        state: started
+        enabled: yes
+
+    # Buat halaman Hello World
+    - name: Create index.html
+      copy:
+        dest: /var/www/html/index.html
+        content: |
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>Hello World</title>
+          </head>
+          <body>
+              <h1>{{ welcome_message }}</h1>
+              <p>Served from {{ ansible_hostname }}</p>
+          </body>
+          </html>
+
+    # Buka firewall untuk HTTP
+    - name: Configure firewall
+      firewalld:
+        service: http
+        permanent: yes
+        state: enabled
+      notify: reload firewall
+
+  handlers:
+    - name: reload firewall
+      command: firewall-cmd --reload
