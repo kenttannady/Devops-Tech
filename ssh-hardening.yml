@@ -1,0 +1,18 @@
+- hosts: all
+  become: yes
+  tasks:
+    - name: Update sshd_config
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^{{ item.regexp }}"
+        line: "{{ item.line }}"
+      with_items:
+        - { regexp: '^#?PermitRootLogin', line: 'PermitRootLogin no' }
+        - { regexp: '^#?PasswordAuthentication', line: 'PasswordAuthentication no' }
+      notify: restart sshd
+
+  handlers:
+    - name: restart sshd
+      service:
+        name: sshd
+        state: restarted
