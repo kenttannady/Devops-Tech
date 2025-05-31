@@ -1,0 +1,56 @@
+---
+- name: Install NGINX and dependencies
+  apt:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - nginx
+    - awscli
+    - python3-pip
+
+- name: Install boto3
+  pip:
+    name: boto3
+    executable: pip3
+
+- name: Create web directory
+  file:
+    path: "{{ local_content_path }}"
+    state: directory
+    mode: '0755'
+
+- name: Sync content from S3 (AWS) or use local
+  block:
+    - name: Download content from S3 (AWS)
+      ansible.builtin.command: "aws s3 sync s3://{{ s3_bucket_name }} {{ local_content_path }}"
+      when: s3_bucket_name is defined
+      
+    - name: Create default index.html (Local)
+      copy:
+        dest: "{{ local_content_path }}/{{ index_file }}"
+        content: |
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>Local Deployment</title>
+          </head>
+          <body>
+              <h1>Hello from Local VM!</h1>
+              <p>This content is served directly from the VM.</p>
+              <p>Private network: {{ private_subnets }}</p>
+          </body>
+          </html>
+      when: s3_bucket_name is not defined
+
+- name: Configure NGINX
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/sites-available/default
+    mode: '0644'
+  notify: Restart NGINX
+
+- name: Enable NGINX
+  service:
+    name: nginx
+    state: started
+    enabled: yes

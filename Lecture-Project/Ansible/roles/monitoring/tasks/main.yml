@@ -1,0 +1,39 @@
+---
+- name: Install Prometheus and Grafana (local)
+  apt:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - prometheus
+    - grafana
+  when: environment == "local"
+
+- name: Install CloudWatch agent (AWS)
+  apt:
+    name: amazon-cloudwatch-agent
+    state: present
+  when: environment == "aws"
+
+- name: Configure Prometheus (local)
+  template:
+    src: prometheus.yml.j2
+    dest: /etc/prometheus/prometheus.yml
+  notify: Restart Prometheus
+  when: environment == "local"
+
+- name: Configure CloudWatch (AWS)
+  template:
+    src: cloudwatch.json.j2
+    dest: /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+  notify: Restart CloudWatch
+  when: environment == "aws"
+
+- name: Start monitoring services
+  service:
+    name: "{{ item }}"
+    state: started
+    enabled: yes
+  loop:
+    - prometheus
+    - grafana
+  when: environment == "local"

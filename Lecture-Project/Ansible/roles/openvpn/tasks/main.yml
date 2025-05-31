@@ -1,0 +1,39 @@
+---
+- name: Install OpenVPN
+  apt:
+    name: openvpn
+    state: present
+
+- name: Create VPN config directory
+  file:
+    path: /etc/openvpn/server
+    state: directory
+
+- name: Generate server config
+  template:
+    src: server.conf.j2
+    dest: /etc/openvpn/server/server.conf
+
+- name: Generate certificates
+  shell: |
+    export EASYRSA_BATCH=1
+    /usr/share/easy-rsa/easyrsa init-pki
+    /usr/share/easy-rsa/easyrsa build-ca nopass
+    /usr/share/easy-rsa/easyrsa gen-req server nopass
+    /usr/share/easy-rsa/easyrsa sign-req server server
+    /usr/share/easy-rsa/easyrsa gen-dh
+    openvpn --genkey --secret pki/ta.key
+  args:
+    chdir: /etc/openvpn/server
+    creates: /etc/openvpn/server/pki/ca.crt
+
+- name: Start OpenVPN service
+  service:
+    name: openvpn@server
+    state: started
+    enabled: yes
+
+- name: Generate client config
+  template:
+    src: client.ovpn.j2
+    dest: "/tmp/client.ovpn"

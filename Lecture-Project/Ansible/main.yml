@@ -1,0 +1,21 @@
+---
+- name: Configure public instances
+  hosts: public
+  become: yes
+  roles:
+    - nginx
+    - monitoring
+
+- name: Configure private instances
+  hosts: private
+  become: yes
+  roles:
+    - internal_service
+    - monitoring_agent
+
+- name: Configure VPN server (local only)
+  hosts: vpn
+  become: yes
+  when: environment == "local"
+  roles:
+    - openvpn
